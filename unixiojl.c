@@ -15,7 +15,8 @@
 #define DURATION 30
 
 int timeup = 0;
-// create 5 child processes, start with 2 for now.
+struct itimerval sessionTimer;
+// create 5 child processes, start with 1 for now.
 // each process may write to its pipe
 // each message will have its own timestamp
 // sleep for random 0-2 seconds
@@ -27,6 +28,13 @@ int timeup = 0;
 // write out the line to output.txt.
 
 //terminate parent after all child processes are completed.
+void SIGALRM_handler(int signo)
+{
+  assert(signo == SIGALRM);
+  printf("\nTime's up!\n");
+
+  timeup = 1;
+}
 
 int main(int argc, char *argv[]){
   // create 5 pipes
@@ -37,23 +45,25 @@ int main(int argc, char *argv[]){
   int result, nread;
   fd_set inputs, inputfds;  // sets of file descriptors
 
-  FD_ZERO(&inputs);
-
   char *write_msg1;
   char read_msg1[BUFFER_SIZE];
   struct timeval timeout;
-  timeout.tv_sec = 2;
+  timeout.tv_sec = DURATION;
 
   if (pipe(fd1) == -1) {
     fprintf(stderr,"pipe() failed\n");
     return 1;
   }
+  FD_ZERO(&inputs);
   FD_SET(fd1[READ_END], &inputs);
   inputfds = inputs;
 
   printf("Forking now\n");
   pid1 = fork();
   if (pid1 > 0) {  // this is the parent
+    sessionTimer.it_value.tv_sec = DURATION;
+    setitimer(ITIMER_REAL, &sessionTimer, NULL);
+    signal(SIGALRM, SIGALRM_handler);
     // Close the unused READ end of the pipe.
     close(fd1[WRITE_END]);
     // loop while not finished
