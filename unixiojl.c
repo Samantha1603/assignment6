@@ -15,6 +15,22 @@
 #define DURATION 30
 
 int timeup = 0;
+double getElapsedTime() {
+  struct timeval now;
+  double startTime;
+    gettimeofday(&now, NULL);
+  double currentTime = (now.tv_sec) * 1000 + (now.tv_usec) / 1000;
+  return (currentTime - startTime)/1000;
+}
+void printEvent( char *event)
+{
+  int min = 0;
+  double sec = getElapsedTime();
+  
+  printf("%1d:%05.3f:\t", min, sec);
+  printf("%s\n",event);
+    
+}
 // create 5 child processes, start with 2 for now.
 // each process may write to its pipe
 // each message will have its own timestamp
@@ -48,7 +64,10 @@ int main(int argc, char *argv[]){
     fprintf(stderr,"pipe() failed\n");
     return 1;
   }
+
   FD_SET(fd1[READ_END], &inputs);
+
+   while (DURATION >= getElapsedTime())  {
   inputfds = inputs;
 
   printf("Forking now\n");
@@ -60,7 +79,7 @@ int main(int argc, char *argv[]){
     // Read from READ end of the pipe.
     printf("waiting for results\n");
     result = select(FD_SETSIZE, &inputfds, 
-		    (fd_set *) 0, (fd_set *) 0, (struct timeval *) &timeout);
+        (fd_set *) 0, (fd_set *) 0, (struct timeval *) &timeout);
     printf("number of results are %d\n", result);
     //check which ones are here and print message
     //  within each check, when the message is received 
@@ -78,16 +97,16 @@ int main(int argc, char *argv[]){
     default:
       printf("in default case\n");
       if(FD_ISSET(fd1[READ_END], &inputfds)){
-	printf("FD_ISSET is true\n");
-	ioctl(fd1[READ_END], FIONREAD, &nread);
-	printf("found something in inputfds set\n");
-	if(nread==0){
-	  printf("Nothing to read\n");
-	  exit(0);
-	}
-	
-	nread = read(fd1[READ_END], read_msg1, nread);
-	printf("number of bytes read %d\n", nread);
+  printf("FD_ISSET is true\n");
+  ioctl(fd1[READ_END], FIONREAD, &nread);
+  printf("found something in inputfds set\n");
+  if(nread==0){
+    printf("Nothing to read\n");
+    exit(0);
+  }
+  
+  nread = read(fd1[READ_END], read_msg1, nread);
+  printf("number of bytes read %d\n", nread);
       }
     }
     //output to file
@@ -106,7 +125,7 @@ int main(int argc, char *argv[]){
     nwrote =write(fd1[WRITE_END], write_msg1, strlen(write_msg1)+1);
     printf("sent my message with %d bytes\n", nwrote);
   }
-
+}
   // join all threads to parent.
   // kill(pid_t pid, SIGKILL)
 
