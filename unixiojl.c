@@ -11,40 +11,52 @@
 
 #define READ_END 0
 #define WRITE_END 1
-#define BUFFER_SIZE 64
+#define BUFFER_SIZE 128
 #define DURATION 30
 
 int timeup = 0;
 struct itimerval sessionTimer;
-// create 5 child processes, start with 1 for now.
-double getElapsedTime() {
-  struct timeval now;
-  double startTime;
-  gettimeofday(&now, NULL);
-  double currentTime = (now.tv_sec) * 1000 + (now.tv_usec) / 1000;
-  return (currentTime - startTime)/1000;
-}
-void printEvent( char *event)
-{
-  int min = 0;
-  double sec = getElapsedTime();
-  
-  printf("%1d:%05.3f:\t", min, sec);
-  printf("%s\n",event);
-    
-}
-// create 5 child processes, start with 2 for now.
-// each process may write to its pipe
-// each message will have its own timestamp
-// sleep for random 0-2 seconds
-// process ends after 30 seconds
-// this means we want to use a timer handler
+time_t startTime;
 
-// parent will use select to read
-// timestamp when it reads
-// write out the line to output.txt.
+char *getElapsedTimeString() {
+  // TODO: Convert time into a timeval structure.
+  time_t now;
+  time(&now);
+  double secondsElapsed = difftime(now, startTime);
+  char *secElapsed = (char *)calloc(6, sizeof(char));;
+  int no_char = sprintf(secElapsed, "%5.3f", secondsElapsed);
+  printf("number of characters copied: %d\n", no_char);
+  return secElapsed;
+}
+char *insertTimestamp(char *message){
+  if(message == NULL){
+    return NULL;
+  }
+  int messageLength = strlen(message);
+  char *timeStamp = getElapsedTimeString();
+  int timeStampLength = strlen(timeStamp);
+  char *separator = " | ";
+  int totalLength = messageLength + timeStampLength + 3;
+  char *newMessage = (char *)calloc(totalLength+1, sizeof(char));
+  strncat(newMessage, timeStamp, timeStampLength);
+  strncat(newMessage, separator, 3);
+  strncat(newMessage, message, messageLength);
+  return newMessage;
+}
+/*
+  create 5 child processes, start with 1 for now. ###### COMPLETED
+  each process may write to its pipe              ###### COMPLETED
+  each message will have its own timestamp        ###### COMPLETED
+  sleep for random 0-2 seconds                    ###### COMPLETED
+  process ends after 30 seconds                  
+  this means we want to use a timer handler
 
-//terminate parent after all child processes are completed.
+  parent will use select to read                  ###### COMPLETED
+  timestamp when it reads                         ###### COMPLETED
+  write out the line to output.txt.
+
+  terminate parent after all child processes are completed.
+*/
 void SIGALRM_handler(int signo)
 {
   assert(signo == SIGALRM);
@@ -54,18 +66,18 @@ void SIGALRM_handler(int signo)
 }
 
 int main(int argc, char *argv[]){
-  // create 5 pipes
-  // pid_t pid1, pid2, pid3, pid4, pid5;
-  pid_t pid1;
+  
+  pid_t pid1; // create process ids for the forks
 
   int fd1[2];
   int result, nread;
   fd_set inputs, inputfds;  // sets of file descriptors
 
-  char *write_msg1;
-  char read_msg1[BUFFER_SIZE];
+  char *write_msg1=(char *)calloc(BUFFER_SIZE, sizeof(char));
+  char *read_msg1=(char *)calloc(BUFFER_SIZE, sizeof(char));
   struct timeval timeout;
   timeout.tv_sec = DURATION;
+  srand((unsigned) time(0));
 
   if (pipe(fd1) == -1) {
     fprintf(stderr,"pipe() failed\n");
@@ -73,69 +85,66 @@ int main(int argc, char *argv[]){
   }
   FD_ZERO(&inputs);
   FD_SET(fd1[READ_END], &inputs);
+  signal(SIGALRM, SIGALRM_handler);
+  time(&startTime);
 
-  while (DURATION >= getElapsedTime())  {
-    inputfds = inputs;
+  inputfds = inputs;
 
-    printf("Forking now\n");
-    pid1 = fork();
-    if (pid1 > 0) {  // this is the parent
-      sessionTimer.it_value.tv_sec = DURATION;
-      setitimer(ITIMER_REAL, &sessionTimer, NULL);
-      signal(SIGALRM, SIGALRM_handler);
-      // Close the unused READ end of the pipe.
-      close(fd1[WRITE_END]);
-      // loop while not finished
-      // Read from READ end of the pipe.
-      printf("waiting for results\n");
-      result = select(FD_SETSIZE, &inputfds, 
-		      (fd_set *) 0, (fd_set *) 0, (struct timeval *) &timeout);
-      printf("number of results are %d\n", result);
-      //check which ones are here and print message
-      //  within each check, when the message is received 
-      //  generate timestamp and add it to message
-      switch(result){
-      case 0: 
-	printf("timedout\n");
-	break;
+  printf("Forking now\n");
+  pid1 = fork();
+  if (pid1 > 0) {  // this is the parent
+    sessionTimer.it_value.tv_sec = DURATION;
+    setitimer(ITIMER_REAL, &sessionTimer, NULL);
+    close(fd1[WRITE_END]); // Close the unused READ end of the pipe.
+    // loop while not finished
+    printf("waiting for results\n");
+    result = select(FD_SETSIZE, &inputfds, 
+		    (fd_set *) 0, (fd_set *) 0, (struct timeval *) &timeout);
+    printf("number of results are %d\n", result);
+    switch(result){
+    case 0: 
+      printf("timedout\n");
+      break;
 
-      case -1:
-	perror("select\n");
-	exit(1);
-	break;
+    case -1:
+      perror("select\n");
+      exit(1);
+      break;
 
-      default:
-	printf("in default case\n");
-	if(FD_ISSET(fd1[READ_END], &inputfds)){
-	  printf("FD_ISSET is true\n");
-	  ioctl(fd1[READ_END], FIONREAD, &nread);
-	  printf("found something in inputfds set\n");
-	  if(nread==0){
-	    printf("Nothing to read\n");
-	    exit(0);
-	  }
-  
-	  nread = read(fd1[READ_END], read_msg1, nread);
-	  printf("number of bytes read %d\n", nread);
+    default:
+      printf("in default case\n");
+      if(FD_ISSET(fd1[READ_END], &inputfds)){ // file descriptor 1
+	printf("FD_ISSET is true\n");
+	ioctl(fd1[READ_END], FIONREAD, &nread);
+	printf("found something in inputfds set\n");
+	if(nread==0){
+	  printf("Nothing to read\n");
+	  exit(0);
 	}
+
+	nread = read(fd1[READ_END], read_msg1, nread);
+	read_msg1 = (char *) insertTimestamp(read_msg1);  
+	printf("number of bytes read %d\n", nread);
       }
-      //output to file
-      printf("Parent: Read '%s' from the pipe.\n", read_msg1);
+      // if statement for file descriptor 2
+      // and so on
     }
-    else{
-      printf("in child process %d\n", pid1);
-      close(fd1[READ_END]);
-      // loop while not finished
-      // generate a random value for sleeping
-      // generate write message
-      // get timestamp
-      write_msg1 = "i will send this as a test\n";
-      printf("wrote my message\n");
-      int nwrote;
-      nwrote =write(fd1[WRITE_END], write_msg1, strlen(write_msg1)+1);
-      printf("sent my message with %d bytes\n", nwrote);
-    }
+    //output to file
+    printf("Parent: Read '%s' from the pipe.\n", read_msg1);
   }
+  else{
+    printf("in child process %d\n", pid1);
+    close(fd1[READ_END]);
+    // loop while not finished
+    sleep(rand() % 3);
+    write_msg1 = "Message from child 1\n";
+    write_msg1 = (char *) insertTimestamp(write_msg1);
+    printf("wrote my message\n");
+    int nwrote;
+    nwrote = write(fd1[WRITE_END], write_msg1, strlen(write_msg1)+1);
+    printf("sent my message with %d bytes\n", nwrote);
+  }
+
   // join all threads to parent.
   // kill(pid_t pid, SIGKILL)
   return 0;
