@@ -19,6 +19,9 @@ struct itimerval sessionTimer;
 struct timeval startTime;
 
 pid_t pid1,pid2; // create process ids for the forks
+FILE *outputFile;
+
+
 char *getElapsedTimeString() {
   // TODO: Convert time into a timeval structure.
   struct timeval now;
@@ -65,12 +68,15 @@ void SIGALRM_handler(int signo)
   assert(signo == SIGALRM);
   printf("\nTime's up!\n");
   timeup = 1;
-  kill(pid1, SIGKILL);
-  kill(pid2, SIGKILL);
+  kill(pid1, SIGTERM);
+  kill(pid2, SIGTERM);
+  
+  int closedStatus = fclose(outputFile);
+  printf("closed: %d", closedStatus);
 }
 
 int main(int argc, char *argv[]){
-  
+  outputFile = fopen("io_output.txt", "w");
 
 
   int fd1[2], fd2[2];
@@ -96,18 +102,26 @@ int main(int argc, char *argv[]){
   FD_SET(fd1[READ_END], &inputs);
   FD_SET(fd2[READ_END], &inputs);
   signal(SIGALRM, SIGALRM_handler);
+<<<<<<< HEAD
   //time(&startTime);
   gettimeofday(&startTime, NULL);
  
  sessionTimer.it_value.tv_sec = DURATION;
  setitimer(ITIMER_REAL, &sessionTimer, NULL);
+=======
+  time(&startTime);
+
+
+  sessionTimer.it_value.tv_sec = DURATION;
+  setitimer(ITIMER_REAL, &sessionTimer, NULL);
+>>>>>>> 6df3d4a65ffbeb9872374f79865a6c62c6f1da5c
   printf("Forking now\n");
   pid1 = fork();
   if (pid1 > 0) {  // this is the parent
     close(fd1[WRITE_END]); // Close the unused READ end of the pipe.
 
     while(!timeup){ // loop while not finished
-      printf("timeup is %d", timeup);
+      printf("timeup is %d\n", timeup);
       inputfds = inputs;      
       printf("waiting for results\n");
       result = select(FD_SETSIZE, &inputfds, 
@@ -124,6 +138,7 @@ int main(int argc, char *argv[]){
     break;
 
       default:
+<<<<<<< HEAD
     printf("in default case\n");
 
     if(FD_ISSET(fd1[READ_END], &inputfds)){ // file descriptor 1
@@ -146,16 +161,44 @@ int main(int argc, char *argv[]){
       read_msg = (char *) insertTimestamp(read_msg);  
       printf("Parent: Read '%s' from the pipe.\n", read_msg);
     }
+=======
+	printf("in default case\n");
+	if(FD_ISSET(fd1[READ_END], &inputfds)){ // file descriptor 1
+	  ioctl(fd1[READ_END], FIONREAD, &nread);
+	  if(nread==0){
+	    printf("Nothing to read\n");
+	    exit(0);
+	  }
+	  nread = read(fd1[READ_END], read_msg, nread);
+	  read_msg = (char *) insertTimestamp(read_msg);
+	  fprintf(outputFile, "Parent read: %s\n", read_msg);
+	  fflush(outputFile);
+	  printf("Parent: Read '%s' from the pipe.\n", read_msg);
+	}
+	if(FD_ISSET(fd2[READ_END], &inputfds)){ // file descriptor 2
+	  ioctl(fd2[READ_END], FIONREAD, &nread);
+	  if(nread==0){
+	    printf("Nothing to read\n");
+	    exit(0);
+	  }
+	  nread = read(fd2[READ_END], read_msg, nread);
+	  read_msg = (char *) insertTimestamp(read_msg);
+	  fprintf(outputFile, "Parent read: %s\n", read_msg);
+	  fflush(outputFile);
+	  printf("Parent: Read '%s' from the pipe.\n", read_msg);
+	}
+>>>>>>> 6df3d4a65ffbeb9872374f79865a6c62c6f1da5c
       }// end switch-case stmt
       //output to file
-
     }
+    fclose(outputFile);
   }
   else{
     // fork again
     pid2 = fork();
     if(pid2>0){ // child - parent
       while(!timeup){
+<<<<<<< HEAD
     printf("timeup is %d", timeup);
     printf("in child process %d\n", pid1);
     close(fd1[READ_END]);
@@ -165,12 +208,24 @@ int main(int argc, char *argv[]){
     int nwrote;
     nwrote = write(fd1[WRITE_END], write_msg1, strlen(write_msg1)+1);
     printf("sent my message with %d bytes\n", nwrote);
+=======
+	printf("timeup is %d\n", timeup);
+	printf("in child process %d\n", pid1);
+	close(fd1[READ_END]);
+	sleep(rand() % 3);
+	write_msg1 = "Message from child 1";
+	write_msg1 = (char *) insertTimestamp(write_msg1);
+	int nwrote;
+	nwrote = write(fd1[WRITE_END], write_msg1, strlen(write_msg1)+1);
+	printf("sent my message with %d bytes\n", nwrote);
+>>>>>>> 6df3d4a65ffbeb9872374f79865a6c62c6f1da5c
       }
 
     }
     else{ // child - child
       
       while(!timeup){
+<<<<<<< HEAD
     printf("timeup is %d", timeup);
     printf("in child process %d\n", pid2);
     close(fd1[READ_END]);
@@ -180,9 +235,20 @@ int main(int argc, char *argv[]){
     int nwrote;
     nwrote = write(fd2[WRITE_END], write_msg2, strlen(write_msg2)+1);
     printf("sent my message with %d bytes\n", nwrote);
+=======
+	printf("timeup is %d\n", timeup);
+	printf("in child process %d\n", pid2);
+	close(fd1[READ_END]);
+	sleep(rand() % 3);
+	write_msg2 = "Message from child 2";
+	write_msg2 = (char *) insertTimestamp(write_msg2);
+	int nwrote;
+	nwrote = write(fd2[WRITE_END], write_msg2, strlen(write_msg2)+1);
+	printf("sent my message with %d bytes\n", nwrote);
+>>>>>>> 6df3d4a65ffbeb9872374f79865a6c62c6f1da5c
       }
     }
   }
-
+  printf("\n\n\n\n\n\n\n\n\nProgram completed");
   return 0;
 }
