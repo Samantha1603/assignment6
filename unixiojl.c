@@ -18,6 +18,9 @@ int timeup = 0;
 struct itimerval sessionTimer;
 time_t startTime;
 pid_t pid1,pid2; // create process ids for the forks
+FILE *outputFile;
+
+
 char *getElapsedTimeString() {
   // TODO: Convert time into a timeval structure.
   time_t now;
@@ -62,12 +65,15 @@ void SIGALRM_handler(int signo)
   assert(signo == SIGALRM);
   printf("\nTime's up!\n");
   timeup = 1;
-  kill(pid1, SIGKILL);
-  kill(pid2, SIGKILL);
+  kill(pid1, SIGTERM);
+  kill(pid2, SIGTERM);
+  
+  int closedStatus = fclose(outputFile);
+  printf("closed: %d", closedStatus);
 }
 
 int main(int argc, char *argv[]){
-  
+  outputFile = fopen("io_output.txt", "w");
 
 
   int fd1[2], fd2[2];
@@ -96,15 +102,15 @@ int main(int argc, char *argv[]){
   time(&startTime);
 
 
- sessionTimer.it_value.tv_sec = DURATION;
- setitimer(ITIMER_REAL, &sessionTimer, NULL);
+  sessionTimer.it_value.tv_sec = DURATION;
+  setitimer(ITIMER_REAL, &sessionTimer, NULL);
   printf("Forking now\n");
   pid1 = fork();
   if (pid1 > 0) {  // this is the parent
     close(fd1[WRITE_END]); // Close the unused READ end of the pipe.
 
     while(!timeup){ // loop while not finished
-      printf("timeup is %d", timeup);
+      printf("timeup is %d\n", timeup);
       inputfds = inputs;      
       printf("waiting for results\n");
       result = select(FD_SETSIZE, &inputfds, 
@@ -122,7 +128,6 @@ int main(int argc, char *argv[]){
 
       default:
 	printf("in default case\n");
-
 	if(FD_ISSET(fd1[READ_END], &inputfds)){ // file descriptor 1
 	  ioctl(fd1[READ_END], FIONREAD, &nread);
 	  if(nread==0){
@@ -131,6 +136,8 @@ int main(int argc, char *argv[]){
 	  }
 	  nread = read(fd1[READ_END], read_msg, nread);
 	  read_msg = (char *) insertTimestamp(read_msg);
+	  fprintf(outputFile, "Parent read: %s\n", read_msg);
+	  fflush(outputFile);
 	  printf("Parent: Read '%s' from the pipe.\n", read_msg);
 	}
 	if(FD_ISSET(fd2[READ_END], &inputfds)){ // file descriptor 2
@@ -140,20 +147,22 @@ int main(int argc, char *argv[]){
 	    exit(0);
 	  }
 	  nread = read(fd2[READ_END], read_msg, nread);
-	  read_msg = (char *) insertTimestamp(read_msg);  
+	  read_msg = (char *) insertTimestamp(read_msg);
+	  fprintf(outputFile, "Parent read: %s\n", read_msg);
+	  fflush(outputFile);
 	  printf("Parent: Read '%s' from the pipe.\n", read_msg);
 	}
       }// end switch-case stmt
       //output to file
-
     }
+    fclose(outputFile);
   }
   else{
     // fork again
     pid2 = fork();
     if(pid2>0){ // child - parent
       while(!timeup){
-	printf("timeup is %d", timeup);
+	printf("timeup is %d\n", timeup);
 	printf("in child process %d\n", pid1);
 	close(fd1[READ_END]);
 	sleep(rand() % 3);
@@ -168,7 +177,7 @@ int main(int argc, char *argv[]){
     else{ // child - child
       
       while(!timeup){
-	printf("timeup is %d", timeup);
+	printf("timeup is %d\n", timeup);
 	printf("in child process %d\n", pid2);
 	close(fd1[READ_END]);
 	sleep(rand() % 3);
@@ -180,6 +189,6 @@ int main(int argc, char *argv[]){
       }
     }
   }
-
+  printf("\n\n\n\n\n\n\n\n\nProgram completed");
   return 0;
 }
