@@ -159,7 +159,6 @@ int main(int argc, char *argv[]){
 	  nread = read(fd1[READ_END], read_msg, nread);
 	  read_msg = (char *) insertTimestamp(read_msg);
 	  fprintf(outputFile, "Parent: Read '%s' from the pipe.\n", read_msg);
-	  printf("Parent: Read '%s' from the pipe.\n", read_msg);
 	}
 	if(FD_ISSET(fd2[READ_END], &inputfds)){ // file descriptor 2
 	  ioctl(fd2[READ_END], FIONREAD, &nread);
@@ -170,7 +169,6 @@ int main(int argc, char *argv[]){
 	  nread = read(fd2[READ_END], read_msg, nread);
 	  read_msg = (char *) insertTimestamp(read_msg);  
 	  fprintf(outputFile, "Parent: Read '%s' from the pipe.\n", read_msg);
-	  printf("Parent: Read '%s' from the pipe.\n", read_msg);
 	}
 	if(FD_ISSET(fd3[READ_END], &inputfds)){ // file descriptor 3
 	  ioctl(fd3[READ_END], FIONREAD, &nread);
@@ -181,7 +179,6 @@ int main(int argc, char *argv[]){
 	  nread = read(fd3[READ_END], read_msg, nread);
 	  read_msg = (char *) insertTimestamp(read_msg);
 	  fprintf(outputFile, "Parent: Read '%s' from the pipe.\n", read_msg);
-	  printf("Parent: Read '%s' from the pipe.\n", read_msg);
 	}
 	if(FD_ISSET(fd4[READ_END], &inputfds)){ // file descriptor 4
 	  ioctl(fd4[READ_END], FIONREAD, &nread);
@@ -192,7 +189,6 @@ int main(int argc, char *argv[]){
 	  nread = read(fd4[READ_END], read_msg, nread);
 	  read_msg = (char *) insertTimestamp(read_msg);
 	  fprintf(outputFile, "Parent: Read '%s' from the pipe.\n", read_msg);
-	  printf("Parent: Read '%s' from the pipe.\n", read_msg);
 	}
 
 	if(FD_ISSET(fd5[READ_END], &inputfds)){ // file descriptor stdin
@@ -204,7 +200,6 @@ int main(int argc, char *argv[]){
 	  nread = read(fd5[READ_END], read_msg, nread);
 	  read_msg = (char *) insertTimestamp(read_msg);  
 	  fprintf(outputFile, "Parent: Read '%s' from the pipe.\n", read_msg);
-	  printf("Parent: Read '%s' from the pipe.\n", read_msg);
 	}
 
       }// end switch-case stmt
@@ -293,23 +288,17 @@ int main(int argc, char *argv[]){
 		  ioctl(0,FIONREAD,&nread);
                     
 		  if(nread > 0){
+		    memset(read_msg_stdin, 0, BUFFER_SIZE);
 		    nread = read(0,read_msg_stdin,nread);
-		    //add in a null character to read_msg_stdin
-		    //		    printf("Read %d characters from the keyboard: %s", nread, read_msg_stdin);
 		    memset(temp_msg_buffer, 0, BUFFER_SIZE);
 		    write_msg5 = "Message from stdin:";
-
-		    printf("temp_msg_buffer is: %s\n", temp_msg_buffer);
 		    int write_msg5_len = strlen(write_msg5);
 		    strncat(temp_msg_buffer, write_msg5, strlen(write_msg5)+1);
 		    int read_msg_stdin_len = strlen(read_msg_stdin);
 		    strncat(temp_msg_buffer, read_msg_stdin, strlen(read_msg_stdin)+1);
-		    temp_msg_buffer[write_msg5_len + read_msg_stdin_len] = '\0';
+		    temp_msg_buffer[write_msg5_len + read_msg_stdin_len-1] = '\0';
 		    write_msg5 = (char *) insertTimestamp(temp_msg_buffer);
-		    //		    int nwrote;
 		    write(fd5[WRITE_END], write_msg5, strlen(write_msg5)+1);
-		    //		    printf("sent my message with %d bytes\n", nwrote);
-		    //		    free(temp_msg_buffer);
 		  }
 		}
 	      }
