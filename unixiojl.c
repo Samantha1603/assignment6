@@ -161,17 +161,6 @@ int main(int argc, char *argv[]){
     pid2 = fork();
     if(pid2>0){ // child - parent
       while(!timeup){
-	<<<<<<< HEAD
-	  printf("timeup is %d", timeup);
-	printf("in child process %d\n", pid1);
-	close(fd1[READ_END]);
-	sleep(rand() % 3);
-	write_msg1 = "Message from child 1";
-	write_msg1 = (char *) insertTimestamp(write_msg1);
-	int nwrote;
-	nwrote = write(fd1[WRITE_END], write_msg1, strlen(write_msg1)+1);
-	printf("sent my message with %d bytes\n", nwrote);
-	=======
 	  printf("timeup is %d\n", timeup);
 	  printf("in child process %d\n", pid1);
 	  close(fd1[READ_END]);
@@ -181,7 +170,7 @@ int main(int argc, char *argv[]){
 	  int nwrote;
 	  nwrote = write(fd1[WRITE_END], write_msg1, strlen(write_msg1)+1);
 	  printf("sent my message with %d bytes\n", nwrote);
-	  >>>>>>> 6df3d4a65ffbeb9872374f79865a6c62c6f1da5c
+
 		    }
 
     }
@@ -201,6 +190,6 @@ int main(int argc, char *argv[]){
       }
     }
   }
-  printf("\n\n\n\n\n\n\n\n\nProgram completed");
+  printf("#############################\nProgram completed");
   return 0;
 }
