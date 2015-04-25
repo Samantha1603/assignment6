@@ -19,6 +19,7 @@ int timeup = 0;
 struct timeval startTime;
 struct timeval selectMaxDuration;
 
+
 pid_t pid1, pid2, pid5; // create process ids for the forks
 FILE *outputFile;
 
@@ -83,7 +84,7 @@ int main(int argc, char *argv[]){
 
   int fd1[2], fd2[2], fd5[2];
   int result, nread;
-  fd_set inputs, inputfds;  // sets of file descriptors
+  fd_set inputs, inputfds, stdinput,stdinputfds;  // sets of file descriptors
 
   char *write_msg1=(char *)calloc(BUFFER_SIZE, sizeof(char));
   char *write_msg2=(char *)calloc(BUFFER_SIZE, sizeof(char));
@@ -100,10 +101,17 @@ int main(int argc, char *argv[]){
     fprintf(stderr,"pipe() failed\n");
     return 1;
   }
-
+  if (pipe(fd5) == -1){
+    fprintf(stderr,"pipe() failed\n");
+    return 1;
+  }
   FD_ZERO(&inputs);
   FD_SET(fd1[READ_END], &inputs);
   FD_SET(fd2[READ_END], &inputs);
+  FD_SET(fd5[READ_END], &inputs);
+
+  FD_ZERO(&stdinput);
+  FD_SET(0, &stdinput);
 
   gettimeofday(&startTime, NULL);
  
@@ -111,7 +119,6 @@ int main(int argc, char *argv[]){
 
   printf("Forking now\n");
   pid1 = fork();
-  srand(pid1); 
 
   if (pid1 > 0) {  // this is the parent
     close(fd1[WRITE_END]); // Close the unused READ end of the pipe.
@@ -153,17 +160,27 @@ int main(int argc, char *argv[]){
 	  fprintf(outputFile, "Parent: Read '%s' from the pipe.\n", read_msg);
 	  printf("Parent: Read '%s' from the pipe.\n", read_msg);
 	}
+	if(FD_ISSET(0, &inputfds)){ // file descriptor 2
+	  ioctl(0, FIONREAD, &nread);
+	  if(nread==0){
+	    printf("Nothing to read\n");
+	    exit(0);
+	  }
+	  nread = read(0, read_msg, nread);
+	  read_msg = (char *) insertTimestamp(read_msg);  
+	  fprintf(outputFile, "Parent: Read '%s' from the pipe.\n", read_msg);
+	  printf("Parent: Read '%s' from the pipe.\n", read_msg);
+	}
       }// end switch-case stmt
       //output to file
     }
     wait(&status);
-
     fclose(outputFile);
   }
-  else{
+  else{ // child
     // fork again
     pid2 = fork();
-    srand(pid2); 
+    srand(pid1); 
     if(pid2>0){ // child - parent
       while(getElapsedTime() <= DURATION){ // loop while not finished
 	close(fd1[READ_END]);
@@ -179,18 +196,47 @@ int main(int argc, char *argv[]){
       exit(0);
     }
     else{ // child - child
-      srand((unsigned) time(0));   
-      while(getElapsedTime() <= DURATION){ // loop while not finished
-	close(fd1[READ_END]);
-	write_msg2 = "Message from child 2";
-	write_msg2 = (char *) insertTimestamp(write_msg2);
-	sleep(rand() % 3);
-	int nwrote;
-	nwrote = write(fd2[WRITE_END], write_msg2, strlen(write_msg2)+1);
-	printf("sent my message with %d bytes\n", nwrote);
-
+      //fork again
+      pid5 = fork();
+      srand(pid2);
+      if(pid5>0){ // child - child - parent
+	while(getElapsedTime() <= DURATION){ // loop while not finished
+	  close(fd1[READ_END]);
+	  write_msg2 = "Message from child 2";
+	  write_msg2 = (char *) insertTimestamp(write_msg2);
+	  sleep(rand() % 3);
+	  int nwrote;
+	  nwrote = write(fd2[WRITE_END], write_msg2, strlen(write_msg2)+1);
+	  printf("sent my message with %d bytes\n", nwrote);
+	}
+	wait(&status);
+	exit(0);
       }
-      exit(0);
+      else{ // child - child - child
+
+
+	/* in this child process, we the end goal is to get the user input and feed it to the parent with a timestamp. to do this, we need to intercept the stdin.
+	   steps are:
+	       use the random generator to generate a timeout
+	       create a select function with the random timeout
+	       read the input if any exists in an FD_SET unique to the stdin process.
+	       if there is input, append the input to the message base from child 5 and have child 5 then write to the pipe connected to the parent.
+
+
+	 */
+	srand(pid5);   
+	while(getElapsedTime() <= DURATION){ // loop while not finished
+	  stdinputfds = stdinput;
+	  close(fd5[READ_END]);
+	  write_msg2 = "Message from child 5";
+	  write_msg2 = (char *) insertTimestamp(write_msg2);
+	  sleep(rand() % 3);
+	  int nwrote;
+	  nwrote = write(fd5[WRITE_END], write_msg2, strlen(write_msg2)+1);
+	  printf("sent my message with %d bytes\n", nwrote);
+	}
+	exit(0);
+      }
     }
   }
   free(write_msg1);
