@@ -19,7 +19,7 @@ int timeup = 0;
 struct timeval startTime;
 struct timeval selectMaxDuration;
 
-pid_t pid1,pid2; // create process ids for the forks
+pid_t pid1, pid2, pid5; // create process ids for the forks
 FILE *outputFile;
 
 /*
@@ -73,6 +73,7 @@ char *insertTimestamp(char *message){
   strncat(newMessage, timeStamp, timeStampLength);
   strncat(newMessage, separator, 3);
   strncat(newMessage, message, messageLength);
+  free(timeStamp);
   return newMessage;
 }
 
@@ -80,12 +81,13 @@ int main(int argc, char *argv[]){
   outputFile = fopen("io_output.txt", "w");
   int status;
 
-  int fd1[2], fd2[2];
+  int fd1[2], fd2[2], fd5[2];
   int result, nread;
   fd_set inputs, inputfds;  // sets of file descriptors
 
   char *write_msg1=(char *)calloc(BUFFER_SIZE, sizeof(char));
   char *write_msg2=(char *)calloc(BUFFER_SIZE, sizeof(char));
+  char *write_msg5=(char *)calloc(BUFFER_SIZE, sizeof(char));
   char *read_msg=(char *)calloc(BUFFER_SIZE, sizeof(char));
 
 
@@ -115,12 +117,9 @@ int main(int argc, char *argv[]){
     close(fd1[WRITE_END]); // Close the unused READ end of the pipe.
 
     while(getElapsedTime() <= DURATION){ // loop while not finished
-      printf("timeup is %d\n", timeup);
       inputfds = inputs;      
-      printf("waiting for results\n");
       result = select(FD_SETSIZE, &inputfds, 
 		      NULL, NULL, &selectMaxDuration);
-      //printf("number of results are %d\n", result);
       switch(result){
       case 0: 
 	printf("timedout\n");
@@ -132,8 +131,6 @@ int main(int argc, char *argv[]){
 	break;
 
       default:
-	printf("in default case\n");
-
 	if(FD_ISSET(fd1[READ_END], &inputfds)){ // file descriptor 1
 	  ioctl(fd1[READ_END], FIONREAD, &nread);
 	  if(nread==0){
@@ -196,6 +193,10 @@ int main(int argc, char *argv[]){
       exit(0);
     }
   }
+  free(write_msg1);
+  free(write_msg2);
+  free(write_msg5);
+  free(read_msg);
   printf("#############################\nProgram completed\n");
   return 0;
 }
