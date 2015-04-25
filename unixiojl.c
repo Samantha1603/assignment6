@@ -19,7 +19,12 @@ int timeup = 0;
 struct timeval startTime;
 struct timeval selectMaxDuration;
 
+<<<<<<< HEAD
 pid_t pid1, pid2,pid3,pid4, pid5; // create process ids for the forks
+=======
+
+pid_t pid1, pid2, pid5; // create process ids for the forks
+>>>>>>> 54c5e644db6797873814ec33b8c03eae933fdc0a
 FILE *outputFile;
 
 /*
@@ -83,7 +88,7 @@ int main(int argc, char *argv[]){
 
   int fd1[2], fd2[2],fd3[2],fd4[2],fd5[2];
   int result, nread;
-  fd_set inputs, inputfds;  // sets of file descriptors
+  fd_set inputs, inputfds, stdinput,stdinputfds;  // sets of file descriptors
 
   char *write_msg1=(char *)calloc(BUFFER_SIZE, sizeof(char));
   char *write_msg2=(char *)calloc(BUFFER_SIZE, sizeof(char));
@@ -102,6 +107,7 @@ int main(int argc, char *argv[]){
     fprintf(stderr,"pipe() failed\n");
     return 1;
   }
+<<<<<<< HEAD
   if (pipe(fd3) == -1) {
     fprintf(stderr,"pipe() failed\n");
     return 1;
@@ -116,6 +122,19 @@ int main(int argc, char *argv[]){
   FD_SET(fd2[READ_END], &inputs);
   FD_SET(fd3[READ_END], &inputs);
   FD_SET(fd4[READ_END], &inputs);
+=======
+  if (pipe(fd5) == -1){
+    fprintf(stderr,"pipe() failed\n");
+    return 1;
+  }
+  FD_ZERO(&inputs);
+  FD_SET(fd1[READ_END], &inputs);
+  FD_SET(fd2[READ_END], &inputs);
+  FD_SET(fd5[READ_END], &inputs);
+
+  FD_ZERO(&stdinput);
+  FD_SET(0, &stdinput);
+>>>>>>> 54c5e644db6797873814ec33b8c03eae933fdc0a
 
   gettimeofday(&startTime, NULL);
  
@@ -123,7 +142,6 @@ int main(int argc, char *argv[]){
 
   printf("Forking now\n");
   pid1 = fork();
-  srand(pid1); 
 
   if (pid1 > 0) {  // this is the parent
     close(fd1[WRITE_END]); // Close the unused READ end of the pipe.
@@ -143,6 +161,7 @@ int main(int argc, char *argv[]){
   break;
 
       default:
+<<<<<<< HEAD
   if(FD_ISSET(fd1[READ_END], &inputfds)){ // file descriptor 1
     ioctl(fd1[READ_END], FIONREAD, &nread);
     if(nread==0){
@@ -187,17 +206,51 @@ int main(int argc, char *argv[]){
     fprintf(outputFile, "Parent: Read '%s' from the pipe.\n", read_msg);
     printf("Parent: Read '%s' from the pipe.\n", read_msg);
   }
+=======
+	if(FD_ISSET(fd1[READ_END], &inputfds)){ // file descriptor 1
+	  ioctl(fd1[READ_END], FIONREAD, &nread);
+	  if(nread==0){
+	    printf("Nothing to read\n");
+	    exit(0);
+	  }
+	  nread = read(fd1[READ_END], read_msg, nread);
+	  read_msg = (char *) insertTimestamp(read_msg);
+	  fprintf(outputFile, "Parent: Read '%s' from the pipe.\n", read_msg);
+	  printf("Parent: Read '%s' from the pipe.\n", read_msg);
+	}
+	if(FD_ISSET(fd2[READ_END], &inputfds)){ // file descriptor 2
+	  ioctl(fd2[READ_END], FIONREAD, &nread);
+	  if(nread==0){
+	    printf("Nothing to read\n");
+	    exit(0);
+	  }
+	  nread = read(fd2[READ_END], read_msg, nread);
+	  read_msg = (char *) insertTimestamp(read_msg);  
+	  fprintf(outputFile, "Parent: Read '%s' from the pipe.\n", read_msg);
+	  printf("Parent: Read '%s' from the pipe.\n", read_msg);
+	}
+	if(FD_ISSET(0, &inputfds)){ // file descriptor 2
+	  ioctl(0, FIONREAD, &nread);
+	  if(nread==0){
+	    printf("Nothing to read\n");
+	    exit(0);
+	  }
+	  nread = read(0, read_msg, nread);
+	  read_msg = (char *) insertTimestamp(read_msg);  
+	  fprintf(outputFile, "Parent: Read '%s' from the pipe.\n", read_msg);
+	  printf("Parent: Read '%s' from the pipe.\n", read_msg);
+	}
+>>>>>>> 54c5e644db6797873814ec33b8c03eae933fdc0a
       }// end switch-case stmt
       //output to file
     }
     wait(&status);
-
     fclose(outputFile);
   }
-  else{
+  else{ // child
     // fork again
     pid2 = fork();
-    srand(pid2); 
+    srand(pid1); 
     if(pid2>0){ // child - parent
       while(getElapsedTime() <= DURATION){ // loop while not finished
   close(fd1[READ_END]);
@@ -212,6 +265,7 @@ int main(int argc, char *argv[]){
       wait(&status);
       exit(0);
     }
+<<<<<<< HEAD
     else{ 
 
     pid3 = fork();
@@ -264,6 +318,50 @@ int main(int argc, char *argv[]){
       exit(0);
       }
       }
+=======
+    else{ // child - child
+      //fork again
+      pid5 = fork();
+      srand(pid2);
+      if(pid5>0){ // child - child - parent
+	while(getElapsedTime() <= DURATION){ // loop while not finished
+	  close(fd1[READ_END]);
+	  write_msg2 = "Message from child 2";
+	  write_msg2 = (char *) insertTimestamp(write_msg2);
+	  sleep(rand() % 3);
+	  int nwrote;
+	  nwrote = write(fd2[WRITE_END], write_msg2, strlen(write_msg2)+1);
+	  printf("sent my message with %d bytes\n", nwrote);
+	}
+	wait(&status);
+	exit(0);
+      }
+      else{ // child - child - child
+
+
+	/* in this child process, we the end goal is to get the user input and feed it to the parent with a timestamp. to do this, we need to intercept the stdin.
+	   steps are:
+	       use the random generator to generate a timeout
+	       create a select function with the random timeout
+	       read the input if any exists in an FD_SET unique to the stdin process.
+	       if there is input, append the input to the message base from child 5 and have child 5 then write to the pipe connected to the parent.
+
+
+	 */
+	srand(pid5);   
+	while(getElapsedTime() <= DURATION){ // loop while not finished
+	  stdinputfds = stdinput;
+	  close(fd5[READ_END]);
+	  write_msg2 = "Message from child 5";
+	  write_msg2 = (char *) insertTimestamp(write_msg2);
+	  sleep(rand() % 3);
+	  int nwrote;
+	  nwrote = write(fd5[WRITE_END], write_msg2, strlen(write_msg2)+1);
+	  printf("sent my message with %d bytes\n", nwrote);
+	}
+	exit(0);
+      }
+>>>>>>> 54c5e644db6797873814ec33b8c03eae933fdc0a
     }
   }
 
