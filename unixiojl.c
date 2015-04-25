@@ -16,7 +16,8 @@
 
 int timeup = 0;
 struct itimerval sessionTimer;
-time_t startTime;
+struct timeval startTime;
+
 pid_t pid1,pid2; // create process ids for the forks
 FILE *outputFile;
 
@@ -48,9 +49,11 @@ FILE *outputFile;
 
 char *getElapsedTimeString() {
   // TODO: Convert time into a timeval structure.
-  time_t now;
-  time(&now);
-  double secondsElapsed = difftime(now, startTime);
+  struct timeval now;
+  gettimeofday(&now, NULL);
+  double secondsElapsed = (now.tv_sec-startTime.tv_sec)*1000 + (now.tv_usec-startTime.tv_usec)/1000;
+  secondsElapsed = secondsElapsed/1000;
+  
   char *secElapsed = (char *)calloc(6, sizeof(char));;
   int no_char = sprintf(secElapsed, "%5.3f", secondsElapsed);
   printf("number of characters copied: %d\n", no_char);
@@ -99,11 +102,19 @@ int main(int argc, char *argv[]){
   FD_SET(fd1[READ_END], &inputs);
   FD_SET(fd2[READ_END], &inputs);
   signal(SIGALRM, SIGALRM_handler);
+<<<<<<< HEAD
+  //time(&startTime);
+  gettimeofday(&startTime, NULL);
+ 
+ sessionTimer.it_value.tv_sec = DURATION;
+ setitimer(ITIMER_REAL, &sessionTimer, NULL);
+=======
   time(&startTime);
 
 
   sessionTimer.it_value.tv_sec = DURATION;
   setitimer(ITIMER_REAL, &sessionTimer, NULL);
+>>>>>>> 6df3d4a65ffbeb9872374f79865a6c62c6f1da5c
   printf("Forking now\n");
   pid1 = fork();
   if (pid1 > 0) {  // this is the parent
@@ -114,19 +125,43 @@ int main(int argc, char *argv[]){
       inputfds = inputs;      
       printf("waiting for results\n");
       result = select(FD_SETSIZE, &inputfds, 
-		      NULL, NULL, NULL);
+              NULL, NULL, NULL);
       //printf("number of results are %d\n", result);
       switch(result){
       case 0: 
-	printf("timedout\n");
-	break;
+    printf("timedout\n");
+    break;
 
       case -1:
-	perror("select\n");
-	exit(1);
-	break;
+    perror("select\n");
+    exit(1);
+    break;
 
       default:
+<<<<<<< HEAD
+    printf("in default case\n");
+
+    if(FD_ISSET(fd1[READ_END], &inputfds)){ // file descriptor 1
+      ioctl(fd1[READ_END], FIONREAD, &nread);
+      if(nread==0){
+        printf("Nothing to read\n");
+        exit(0);
+      }
+      nread = read(fd1[READ_END], read_msg, nread);
+      read_msg = (char *) insertTimestamp(read_msg);
+      printf("Parent: Read '%s' from the pipe.\n", read_msg);
+    }
+    if(FD_ISSET(fd2[READ_END], &inputfds)){ // file descriptor 2
+      ioctl(fd2[READ_END], FIONREAD, &nread);
+      if(nread==0){
+        printf("Nothing to read\n");
+        exit(0);
+      }
+      nread = read(fd2[READ_END], read_msg, nread);
+      read_msg = (char *) insertTimestamp(read_msg);  
+      printf("Parent: Read '%s' from the pipe.\n", read_msg);
+    }
+=======
 	printf("in default case\n");
 	if(FD_ISSET(fd1[READ_END], &inputfds)){ // file descriptor 1
 	  ioctl(fd1[READ_END], FIONREAD, &nread);
@@ -152,6 +187,7 @@ int main(int argc, char *argv[]){
 	  fflush(outputFile);
 	  printf("Parent: Read '%s' from the pipe.\n", read_msg);
 	}
+>>>>>>> 6df3d4a65ffbeb9872374f79865a6c62c6f1da5c
       }// end switch-case stmt
       //output to file
     }
@@ -162,6 +198,17 @@ int main(int argc, char *argv[]){
     pid2 = fork();
     if(pid2>0){ // child - parent
       while(!timeup){
+<<<<<<< HEAD
+    printf("timeup is %d", timeup);
+    printf("in child process %d\n", pid1);
+    close(fd1[READ_END]);
+    sleep(rand() % 3);
+    write_msg1 = "Message from child 1";
+    write_msg1 = (char *) insertTimestamp(write_msg1);
+    int nwrote;
+    nwrote = write(fd1[WRITE_END], write_msg1, strlen(write_msg1)+1);
+    printf("sent my message with %d bytes\n", nwrote);
+=======
 	printf("timeup is %d\n", timeup);
 	printf("in child process %d\n", pid1);
 	close(fd1[READ_END]);
@@ -171,12 +218,24 @@ int main(int argc, char *argv[]){
 	int nwrote;
 	nwrote = write(fd1[WRITE_END], write_msg1, strlen(write_msg1)+1);
 	printf("sent my message with %d bytes\n", nwrote);
+>>>>>>> 6df3d4a65ffbeb9872374f79865a6c62c6f1da5c
       }
 
     }
     else{ // child - child
       
       while(!timeup){
+<<<<<<< HEAD
+    printf("timeup is %d", timeup);
+    printf("in child process %d\n", pid2);
+    close(fd1[READ_END]);
+    sleep(rand() % 3);
+    write_msg2 = "Message from child 2";
+    write_msg2 = (char *) insertTimestamp(write_msg2);
+    int nwrote;
+    nwrote = write(fd2[WRITE_END], write_msg2, strlen(write_msg2)+1);
+    printf("sent my message with %d bytes\n", nwrote);
+=======
 	printf("timeup is %d\n", timeup);
 	printf("in child process %d\n", pid2);
 	close(fd1[READ_END]);
@@ -186,6 +245,7 @@ int main(int argc, char *argv[]){
 	int nwrote;
 	nwrote = write(fd2[WRITE_END], write_msg2, strlen(write_msg2)+1);
 	printf("sent my message with %d bytes\n", nwrote);
+>>>>>>> 6df3d4a65ffbeb9872374f79865a6c62c6f1da5c
       }
     }
   }
