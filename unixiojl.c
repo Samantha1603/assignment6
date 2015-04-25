@@ -43,17 +43,16 @@ FILE *outputFile;
 
 
 
-
-
-
-
-char *getElapsedTimeString() {
-  // TODO: Convert time into a timeval structure.
+double getElapsedTime(){
   struct timeval now;
   gettimeofday(&now, NULL);
-  double secondsElapsed = (now.tv_sec-startTime.tv_sec)*1000 + (now.tv_usec-startTime.tv_usec)/1000;
+  double secondsElapsed = (now.tv_sec-startTime.tv_sec)*1000 + (now.tv_usec-startTime.tv_usec)/1000; // final result will be in milliseconds
   secondsElapsed = secondsElapsed/1000;
-  
+  return secondsElapsed
+    }
+
+char *getElapsedTimeString() {
+  double secondsElapsed = getElapsedTime();
   char *secElapsed = (char *)calloc(6, sizeof(char));;
   int no_char = sprintf(secElapsed, "%5.3f", secondsElapsed);
   printf("number of characters copied: %d\n", no_char);
@@ -87,7 +86,7 @@ int main(int argc, char *argv[]){
   char *write_msg2=(char *)calloc(BUFFER_SIZE, sizeof(char));
   char *read_msg=(char *)calloc(BUFFER_SIZE, sizeof(char));
 
-  srand((unsigned) time(0));
+  srand((unsigned) time(0)); 
 
   if (pipe(fd1) == -1) {
     fprintf(stderr,"pipe() failed\n");
@@ -111,7 +110,7 @@ int main(int argc, char *argv[]){
   if (pid1 > 0) {  // this is the parent
     close(fd1[WRITE_END]); // Close the unused READ end of the pipe.
 
-    while(!timeup){ // loop while not finished
+    while(getElapsedTime() <= DURATION){ // loop while not finished
       printf("timeup is %d\n", timeup);
       inputfds = inputs;      
       printf("waiting for results\n");
@@ -160,23 +159,23 @@ int main(int argc, char *argv[]){
     // fork again
     pid2 = fork();
     if(pid2>0){ // child - parent
-      while(!timeup){
-	  printf("timeup is %d\n", timeup);
-	  printf("in child process %d\n", pid1);
-	  close(fd1[READ_END]);
-	  sleep(rand() % 3);
-	  write_msg1 = "Message from child 1";
-	  write_msg1 = (char *) insertTimestamp(write_msg1);
-	  int nwrote;
-	  nwrote = write(fd1[WRITE_END], write_msg1, strlen(write_msg1)+1);
-	  printf("sent my message with %d bytes\n", nwrote);
+      while(getElapsedTime() <= DURATION){ // loop while not finished
+	printf("timeup is %d\n", timeup);
+	printf("in child process %d\n", pid1);
+	close(fd1[READ_END]);
+	sleep(rand() % 3);
+	write_msg1 = "Message from child 1";
+	write_msg1 = (char *) insertTimestamp(write_msg1);
+	int nwrote;
+	nwrote = write(fd1[WRITE_END], write_msg1, strlen(write_msg1)+1);
+	printf("sent my message with %d bytes\n", nwrote);
 
-		    }
+      }
 
     }
     else{ // child - child
       
-      while(!timeup){
+      while(getElapsedTime() <= DURATION){ // loop while not finished
 	printf("timeup is %d\n", timeup);
 	printf("in child process %d\n", pid2);
 	close(fd1[READ_END]);
