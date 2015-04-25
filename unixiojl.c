@@ -19,7 +19,7 @@ int timeup = 0;
 struct timeval startTime;
 struct timeval selectMaxDuration;
 
-pid_t pid1, pid2, pid5; // create process ids for the forks
+pid_t pid1, pid2,pid3,pid4, pid5; // create process ids for the forks
 FILE *outputFile;
 
 /*
@@ -81,12 +81,14 @@ int main(int argc, char *argv[]){
   outputFile = fopen("io_output.txt", "w");
   int status;
 
-  int fd1[2], fd2[2], fd5[2];
+  int fd1[2], fd2[2],fd3[2],fd4[2],fd5[2];
   int result, nread;
   fd_set inputs, inputfds;  // sets of file descriptors
 
   char *write_msg1=(char *)calloc(BUFFER_SIZE, sizeof(char));
   char *write_msg2=(char *)calloc(BUFFER_SIZE, sizeof(char));
+  char *write_msg3=(char *)calloc(BUFFER_SIZE, sizeof(char));
+  char *write_msg4=(char *)calloc(BUFFER_SIZE, sizeof(char));
   char *write_msg5=(char *)calloc(BUFFER_SIZE, sizeof(char));
   char *read_msg=(char *)calloc(BUFFER_SIZE, sizeof(char));
 
@@ -100,10 +102,20 @@ int main(int argc, char *argv[]){
     fprintf(stderr,"pipe() failed\n");
     return 1;
   }
+  if (pipe(fd3) == -1) {
+    fprintf(stderr,"pipe() failed\n");
+    return 1;
+  }
+  if (pipe(fd4) == -1) {
+    fprintf(stderr,"pipe() failed\n");
+    return 1;
+  }
 
   FD_ZERO(&inputs);
   FD_SET(fd1[READ_END], &inputs);
   FD_SET(fd2[READ_END], &inputs);
+  FD_SET(fd3[READ_END], &inputs);
+  FD_SET(fd4[READ_END], &inputs);
 
   gettimeofday(&startTime, NULL);
  
@@ -119,40 +131,62 @@ int main(int argc, char *argv[]){
     while(getElapsedTime() <= DURATION){ // loop while not finished
       inputfds = inputs;      
       result = select(FD_SETSIZE, &inputfds, 
-		      NULL, NULL, &selectMaxDuration);
+          NULL, NULL, &selectMaxDuration);
       switch(result){
       case 0: 
-	printf("timedout\n");
-	break;
+  printf("timedout\n");
+  break;
 
       case -1:
-	perror("select\n");
-	exit(1);
-	break;
+  perror("select\n");
+  exit(1);
+  break;
 
       default:
-	if(FD_ISSET(fd1[READ_END], &inputfds)){ // file descriptor 1
-	  ioctl(fd1[READ_END], FIONREAD, &nread);
-	  if(nread==0){
-	    printf("Nothing to read\n");
-	    exit(0);
-	  }
-	  nread = read(fd1[READ_END], read_msg, nread);
-	  read_msg = (char *) insertTimestamp(read_msg);
-	  fprintf(outputFile, "Parent: Read '%s' from the pipe.\n", read_msg);
-	  printf("Parent: Read '%s' from the pipe.\n", read_msg);
-	}
-	if(FD_ISSET(fd2[READ_END], &inputfds)){ // file descriptor 2
-	  ioctl(fd2[READ_END], FIONREAD, &nread);
-	  if(nread==0){
-	    printf("Nothing to read\n");
-	    exit(0);
-	  }
-	  nread = read(fd2[READ_END], read_msg, nread);
-	  read_msg = (char *) insertTimestamp(read_msg);  
-	  fprintf(outputFile, "Parent: Read '%s' from the pipe.\n", read_msg);
-	  printf("Parent: Read '%s' from the pipe.\n", read_msg);
-	}
+  if(FD_ISSET(fd1[READ_END], &inputfds)){ // file descriptor 1
+    ioctl(fd1[READ_END], FIONREAD, &nread);
+    if(nread==0){
+      printf("Nothing to read\n");
+      exit(0);
+    }
+    nread = read(fd1[READ_END], read_msg, nread);
+    read_msg = (char *) insertTimestamp(read_msg);
+    fprintf(outputFile, "Parent: Read '%s' from the pipe.\n", read_msg);
+    printf("Parent: Read '%s' from the pipe.\n", read_msg);
+  }
+  if(FD_ISSET(fd2[READ_END], &inputfds)){ // file descriptor 2
+    ioctl(fd2[READ_END], FIONREAD, &nread);
+    if(nread==0){
+      printf("Nothing to read\n");
+      exit(0);
+    }
+    nread = read(fd2[READ_END], read_msg, nread);
+    read_msg = (char *) insertTimestamp(read_msg);  
+    fprintf(outputFile, "Parent: Read '%s' from the pipe.\n", read_msg);
+    printf("Parent: Read '%s' from the pipe.\n", read_msg);
+  }
+  if(FD_ISSET(fd3[READ_END], &inputfds)){ // file descriptor 3
+    ioctl(fd3[READ_END], FIONREAD, &nread);
+    if(nread==0){
+      printf("Nothing to read\n");
+      exit(0);
+    }
+    nread = read(fd3[READ_END], read_msg, nread);
+    read_msg = (char *) insertTimestamp(read_msg);
+    fprintf(outputFile, "Parent: Read '%s' from the pipe.\n", read_msg);
+    printf("Parent: Read '%s' from the pipe.\n", read_msg);
+  }
+  if(FD_ISSET(fd4[READ_END], &inputfds)){ // file descriptor 4
+    ioctl(fd4[READ_END], FIONREAD, &nread);
+    if(nread==0){
+      printf("Nothing to read\n");
+      exit(0);
+    }
+    nread = read(fd4[READ_END], read_msg, nread);
+    read_msg = (char *) insertTimestamp(read_msg);
+    fprintf(outputFile, "Parent: Read '%s' from the pipe.\n", read_msg);
+    printf("Parent: Read '%s' from the pipe.\n", read_msg);
+  }
       }// end switch-case stmt
       //output to file
     }
@@ -166,37 +200,79 @@ int main(int argc, char *argv[]){
     srand(pid2); 
     if(pid2>0){ // child - parent
       while(getElapsedTime() <= DURATION){ // loop while not finished
-	close(fd1[READ_END]);
-	write_msg1 = "Message from child 1";
-	write_msg1 = (char *) insertTimestamp(write_msg1);
-	sleep(rand() % 3);
-	int nwrote;
-	nwrote = write(fd1[WRITE_END], write_msg1, strlen(write_msg1)+1);
-	printf("sent my message with %d bytes\n", nwrote);
+  close(fd1[READ_END]);
+  write_msg1 = "Message from child 1";
+  write_msg1 = (char *) insertTimestamp(write_msg1);
+  sleep(rand() % 3);
+  int nwrote;
+  nwrote = write(fd1[WRITE_END], write_msg1, strlen(write_msg1)+1);
+  printf("sent my message with %d bytes\n", nwrote);
 
       }
       wait(&status);
       exit(0);
     }
-    else{ // child - child
-      srand((unsigned) time(0));   
+    else{ 
+
+    pid3 = fork();
+    srand(pid3); 
+    if(pid3>0){ // child - parent
       while(getElapsedTime() <= DURATION){ // loop while not finished
-	close(fd1[READ_END]);
-	write_msg2 = "Message from child 2";
-	write_msg2 = (char *) insertTimestamp(write_msg2);
-	sleep(rand() % 3);
-	int nwrote;
-	nwrote = write(fd2[WRITE_END], write_msg2, strlen(write_msg2)+1);
-	printf("sent my message with %d bytes\n", nwrote);
+      close(fd2[READ_END]);
+      write_msg2 = "Message from child 2";
+      write_msg2 = (char *) insertTimestamp(write_msg2);
+      sleep(rand() % 3);
+      int nwrote;
+      nwrote = write(fd2[WRITE_END], write_msg2, strlen(write_msg2)+1);
+      printf("sent my message with %d bytes\n", nwrote);
+
+      }
+      wait(&status);
+      exit(0);
+      }
+      else{
+
+        pid4 = fork();
+        srand(pid4); 
+        if(pid4>0){ // child - parent
+        while(getElapsedTime() <= DURATION){ // loop while not finished
+        close(fd3[READ_END]);
+        write_msg3 = "Message from child 3";
+        write_msg3 = (char *) insertTimestamp(write_msg3);
+        sleep(rand() % 3);
+        int nwrote;
+        nwrote = write(fd3[WRITE_END], write_msg3, strlen(write_msg3)+1);
+        printf("sent my message with %d bytes\n", nwrote);
+
+      }
+      wait(&status);
+      exit(0);
+      }
+      else{
+
+        srand((unsigned) time(0));   
+        while(getElapsedTime() <= DURATION){ // loop while not finished
+        close(fd4[READ_END]);
+        write_msg4 = "Message from child 4";
+        write_msg4 = (char *) insertTimestamp(write_msg4);
+        sleep(rand() % 3);
+        int nwrote;
+        nwrote = write(fd4[WRITE_END], write_msg4, strlen(write_msg4)+1);
+        printf("sent my message with %d bytes\n", nwrote);
 
       }
       exit(0);
+      }
+      }
     }
   }
-  free(write_msg1);
-  free(write_msg2);
-  free(write_msg5);
-  free(read_msg);
+
+  // free(write_msg1);
+  // free(write_msg2);
+  // free(write_msg3);
+  // free(write_msg4);
+  // free(write_msg5);
+  // free(read_msg);
   printf("#############################\nProgram completed\n");
   return 0;
 }
