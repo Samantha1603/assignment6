@@ -20,6 +20,31 @@ time_t startTime;
 pid_t pid1,pid2; // create process ids for the forks
 FILE *outputFile;
 
+/*
+  create 5 child processes, start with 1 for now. ###### COMPLETED
+  each process may write to its pipe              ###### COMPLETED
+  each message will have its own timestamp        ###### COMPLETED
+  sleep for random 0-2 seconds                    ###### COMPLETED
+  process ends after 30 seconds                   ###### COMPLETED
+  this means we want to use a timer handler       ###### COMPLETED
+
+  parent will use select to read                  ###### COMPLETED
+  timestamp when it reads                         ###### COMPLETED
+  write out the line to output.txt.
+
+  terminate parent after all child processes are completed.
+*/
+
+// Remove signal handler and do a time comparison in each process' loop
+// change random generator and seed it with the pid
+// have each parent wait on its child to end gracefully
+
+
+
+
+
+
+
 
 char *getElapsedTimeString() {
   // TODO: Convert time into a timeval structure.
@@ -45,31 +70,6 @@ char *insertTimestamp(char *message){
   strncat(newMessage, separator, 3);
   strncat(newMessage, message, messageLength);
   return newMessage;
-}
-/*
-  create 5 child processes, start with 1 for now. ###### COMPLETED
-  each process may write to its pipe              ###### COMPLETED
-  each message will have its own timestamp        ###### COMPLETED
-  sleep for random 0-2 seconds                    ###### COMPLETED
-  process ends after 30 seconds                   ###### COMPLETED
-  this means we want to use a timer handler       ###### COMPLETED
-
-  parent will use select to read                  ###### COMPLETED
-  timestamp when it reads                         ###### COMPLETED
-  write out the line to output.txt.
-
-  terminate parent after all child processes are completed.
-*/
-void SIGALRM_handler(int signo)
-{
-  assert(signo == SIGALRM);
-  printf("\nTime's up!\n");
-  timeup = 1;
-  kill(pid1, SIGTERM);
-  kill(pid2, SIGTERM);
-  
-  int closedStatus = fclose(outputFile);
-  printf("closed: %d", closedStatus);
 }
 
 int main(int argc, char *argv[]){
