@@ -80,7 +80,7 @@ char *insertTimestamp(char *message){
 }
 
 int main(int argc, char *argv[]){
-  outputFile = fopen("io_output.txt", "w");
+  outputFile = fopen("output.txt", "w");
   int status;
 
 
